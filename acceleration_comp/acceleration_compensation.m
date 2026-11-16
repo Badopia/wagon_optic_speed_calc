@@ -41,13 +41,13 @@ end
     % датчиков": нужна оценка В ТЕЧЕНИЕ проезда, а не по всему файлу.
     def = struct( ...
         'Ts',          0.010, ...   % шаг дискретизации дальномеров, с
-        'T',           5.000, ...   % длительность записи, с
+        'T',           10.000, ...   % длительность записи, с
         'sensorGap',   2.000, ...   % база между датчиками L, м  (было 0.50)
         'sideGap',     0.400, ...   % боковой зазор до плоскости борта, м
-        'noiseStd',    0.003, ...   % стандартное отклонение шума, м
+        'noiseStd',    0.033, ...   % стандартное отклонение шума, м
         'speed0',      5.000, ...   % начальная скорость вагона, м/с
-        'accel0',      0.500, ...   % ускорение вагона, м/с^2
-        'speedMin',    4.000, ...   % нижняя граница поиска скорости, м/с
+        'accel0',      -0.500, ...   % ускорение вагона, м/с^2
+        'speedMin',    1.000, ...   % нижняя граница поиска скорости, м/с
         'speedMax',    8.000, ...   % верхняя граница поиска скорости, м/с
         'windowMode',  'feature', ... % 'feature' | 'fixed'
         'winSeconds',  1.000, ...   % длина окна для режима 'fixed', с
@@ -55,7 +55,7 @@ end
         'featureMin',  0.150, ...   % минимальная длительность детали, с
         'winPad',      0.030, ...   % запас окна вокруг детали, с
         'bg',          2.000, ...   % уровень фона дальномера, м
-        'threshold',   0.100, ...   % уход с фона, считающийся деталью, м
+        'threshold',   0.0500, ...   % уход с фона, считающийся деталью, м
         'minCorr',     0.950, ...   % порог достоверности корреляции
         'minOverlap',  30, ...      % минимум перекрытия сдвинутых фрагментов, отсч.
         'qLimit',      0.80, ...    % рабочий предел |q| (крайние точки вырождены)
@@ -548,12 +548,11 @@ function fig = plotResults(t, y1, y2, results, opts)
         'NumberTitle', 'off');
     fig.WindowState = 'normal';
 
-    subplot(2, 1, 1);
     plot(t, y1, 'k', 'LineWidth', 1.2); hold on;
     plot(t, y2, 'r', 'LineWidth', 1.0);
     for k = 1:numel(results)
-        xline(results(k).start_s, ':b');
-        xline(results(k).end_s, ':b');
+        xline(results(k).start_s, 'b');
+        xline(results(k).end_s, '--b');
     end
     grid on;
     xlabel('Время, с');
@@ -562,62 +561,62 @@ function fig = plotResults(t, y1, y2, results, opts)
     title(sprintf('Сигналы дальномеров, база %.2f м, окна: %s', ...
         opts.sensorGap, opts.windowMode));
 
-    subplot(2, 1, 2);
-    tMid = ([results.start_s] + [results.end_s]) / 2;
-    vEst = [results.speed_mps];
-    aEst = [results.acc_mps2];
-    ok = [results.accepted];
+    % subplot(2, 1, 2);
+    % tMid = ([results.start_s] + [results.end_s]) / 2;
+    % vEst = [results.speed_mps];
+    % aEst = [results.acc_mps2];
+    % ok = [results.accepted];
+    % 
+    % if any(ok)
+    %     plot(tMid(ok), vEst(ok), 'bo', 'MarkerFaceColor', 'b'); hold on;
+    % end
+    % if any(~ok)
+    %     plot(tMid(~ok), vEst(~ok), 'ko', 'MarkerFaceColor', 'none');
+    % end
+    % grid on;
+    % xlabel('Время, с');
+    % ylabel('Скорость, м/с');
+    % if any(isfinite(aEst))
+    %     title(sprintf('v: точки; a_{сред} = %.3f м/с^2 (модель %.3f)', ...
+    %         mean(aEst(isfinite(aEst))), opts.accel0));
+    % end
 
-    if any(ok)
-        plot(tMid(ok), vEst(ok), 'bo', 'MarkerFaceColor', 'b'); hold on;
-    end
-    if any(~ok)
-        plot(tMid(~ok), vEst(~ok), 'ko', 'MarkerFaceColor', 'none');
-    end
-    grid on;
-    xlabel('Время, с');
-    ylabel('Скорость, м/с');
-    if any(isfinite(aEst))
-        title(sprintf('v: точки; a_{сред} = %.3f м/с^2 (модель %.3f)', ...
-            mean(aEst(isfinite(aEst))), opts.accel0));
-    end
-
-    % --- 3D-представление оценок --------------------------------------
-    % Каждая оценка - точка в пространстве (время, скорость, ускорение).
-    % Такой вид удобен тем, что связывает обе измеряемые величины: видно,
-    % как растёт скорость и одновременно "плывёт" оценка ускорения, а также
-    % сразу заметны выбросы по любому из двух измерений.
-    if any(ok)
-        fig3 = figure('Name', '3D: оценки (t, v, a)', ...
-            'NumberTitle', 'off', 'WindowStyle', 'normal');
-        ax3 = axes(fig3);
-        hold(ax3, 'on'); grid(ax3, 'on'); box(ax3, 'on');
-
-        % Истинная траектория из модели движения: v(t) = v0 + a*t.
-        tLine = linspace(0, opts.T, 200).';
-        vLine = opts.speed0 + opts.accel0 * tLine;
-        aLine = repmat(opts.accel0, size(tLine));
-        plot3(ax3, tLine, vLine, aLine, 'k-', 'LineWidth', 1.8, ...
-            'DisplayName', 'истинная модель');
-
-        % Принятые оценки, окрашенные по достоверности корреляции.
-        vA = vEst(ok); aA = aEst(ok); tA = tMid(ok);
-        cA = [results(ok).corr];
-        scatter3(ax3, tA, vA, aA, 90, cA, 'filled', ...
-            'MarkerEdgeColor', 'k', 'DisplayName', 'принятые оценки');
-        cb = colorbar(ax3); cb.Label.String = 'correlation';
-
-        % Отбракованные окна - полыми маркерами (если есть).
-        if any(~ok)
-            scatter3(ax3, tMid(~ok), vEst(~ok), aEst(~ok), 70, 'k', ...
-                'Marker', 'o', 'DisplayName', 'отбракованные');
-        end
-
-        xlabel(ax3, 'Время, с');
-        ylabel(ax3, 'Скорость, м/с');
-        zlabel(ax3, 'Ускорение, м/с^2');
-        title(ax3, 'Оценки в пространстве (время, скорость, ускорение)');
-        legend(ax3, 'Location', 'northeast');
-        view(ax3, -40, 25);
-    end
+%     % --- 3D-представление оценок --------------------------------------
+%     % Каждая оценка - точка в пространстве (время, скорость, ускорение).
+%     % Такой вид удобен тем, что связывает обе измеряемые величины: видно,
+%     % как растёт скорость и одновременно "плывёт" оценка ускорения, а также
+%     % сразу заметны выбросы по любому из двух измерений.
+%     if any(ok)
+%         fig3 = figure('Name', '3D: оценки (t, v, a)', ...
+%             'NumberTitle', 'off', 'WindowStyle', 'normal');
+%         ax3 = axes(fig3);
+%         hold(ax3, 'on'); grid(ax3, 'on'); box(ax3, 'on');
+% 
+%         % Истинная траектория из модели движения: v(t) = v0 + a*t.
+%         tLine = linspace(0, opts.T, 200).';
+%         vLine = opts.speed0 + opts.accel0 * tLine;
+%         aLine = repmat(opts.accel0, size(tLine));
+%         plot3(ax3, tLine, vLine, aLine, 'k-', 'LineWidth', 1.8, ...
+%             'DisplayName', 'истинная модель');
+% 
+%         % Принятые оценки, окрашенные по достоверности корреляции.
+%         vA = vEst(ok); aA = aEst(ok); tA = tMid(ok);
+%         cA = [results(ok).corr];
+%         scatter3(ax3, tA, vA, aA, 90, cA, 'filled', ...
+%             'MarkerEdgeColor', 'k', 'DisplayName', 'принятые оценки');
+%         cb = colorbar(ax3); cb.Label.String = 'correlation';
+% 
+%         % Отбракованные окна - полыми маркерами (если есть).
+%         if any(~ok)
+%             scatter3(ax3, tMid(~ok), vEst(~ok), aEst(~ok), 70, 'k', ...
+%                 'Marker', 'o', 'DisplayName', 'отбракованные');
+%         end
+% 
+%         xlabel(ax3, 'Время, с');
+%         ylabel(ax3, 'Скорость, м/с');
+%         zlabel(ax3, 'Ускорение, м/с^2');
+%         title(ax3, 'Оценки в пространстве (время, скорость, ускорение)');
+%         legend(ax3, 'Location', 'northeast');
+%         view(ax3, -40, 25);
+%     end
 end

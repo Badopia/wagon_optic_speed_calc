@@ -35,22 +35,22 @@ printQuality('feature', r1.table);
 % Окно 2 с выбрано осознанно: ускорение оценивается как a = 2*q*v/(N*Ts),
 % поэтому чем короче окно, тем сильнее шум q раздувает разброс a.
 % Окно 1 с даёт std(a) ~ 0.5 м/с^2, окно 2 с - ~0.24, окно 3 с - ~0.06.
-opts = struct('windowMode', 'fixed', 'winSeconds', 2.0, ...
-              'hopSeconds', 0.5, 'randomSeed', 42, 'makePlot', false);
+opts = struct('windowMode', 'fixed', 'winSeconds', 3.5, ...
+              'hopSeconds', 0.5, 'randomSeed', 42, 'makePlot', true);
 r2 = acceleration_compensation(profileFile, opts);
 
-fprintf('\n=== Режим fixed: окна 2 с, шаг 0.5 с ===\n');
+fprintf('\n=== Режим fixed: ===\n');
 disp(summarize(r2.table));
 printQuality('fixed', r2.table);
 
 %% --- 3. Проверка на равномерном движении --------------------------------
-opts = struct('windowMode', 'fixed', 'winSeconds', 2.0, 'hopSeconds', 0.5, ...
-              'accel0', 0.0, 'randomSeed', 42, 'makePlot', false);
-r3 = acceleration_compensation(profileFile, opts);
-
-fprintf('\n=== Контроль: a = 0 (равномерное движение) ===\n');
-printQuality('a=0', r3.table);
-fprintf('  Ожидание: ошибка скорости ~0, найденный q ~0, a ~0\n');
+% opts = struct('windowMode', 'fixed', 'winSeconds', 2.0, 'hopSeconds', 0.5, ...
+%               'accel0', 0.0, 'randomSeed', 42, 'makePlot', false);
+% r3 = acceleration_compensation(profileFile, opts);
+% 
+% fprintf('\n=== Контроль: a = 0 (равномерное движение) ===\n');
+% printQuality('a=0', r3.table);
+% fprintf('  Ожидание: ошибка скорости ~0, найденный q ~0, a ~0\n');
 
 %% --- 4. Сводка и графики ------------------------------------------------
 fprintf('\n=== Итог ===\n');
@@ -65,7 +65,7 @@ fprintf('fixed:   окно %2d..%2d, средняя |ошибка| v = %.3f м/�
 
 if any(r2.table.Accepted)
     fh = figure('Name', 'Скорость и ускорение по методике Strauß 2009', ...
-        'NumberTitle', 'off', 'WindowStyle', 'normal');
+        'NumberTitle', 'off');
     if ~matlab.ui.internal.isFigureShowEnabled()
         fh.Visible = 'on';
     end
@@ -88,67 +88,67 @@ if any(r2.table.Accepted)
 end
 
 %% --- 4. 3D-визуализация: сравнение режимов и пространство ошибок ---------
-if any(r1.table.Accepted) && any(r2.table.Accepted)
-
-    fig3 = figure('Name', '3D: сравнение режимов и точность', ...
-        'NumberTitle', 'off', 'WindowStyle', 'normal', ...
-        'Units', 'normalized', 'Position', [0.05 0.08 0.9 0.75]);
-
-    % (а) Пространство (t, v, a): два режима на одних осях.
-    % Позволяет увидеть, что режим feature даёт редкие, но точные оценки,
-    % а fixed - частые; по оси Z сразу виден разброс ускорения.
-    ax1 = subplot(1, 2, 1);
-    hold(ax1, 'on'); grid(ax1, 'on'); box(ax1, 'on');
-
-    tModel = linspace(0, r2.settings.T, 200).';
-    vModel = r2.settings.speed0 + r2.settings.accel0 * tModel;
-    aModel = repmat(r2.settings.accel0, size(tModel));
-    plot3(ax1, tModel, vModel, aModel, 'k-', 'LineWidth', 1.8, ...
-        'DisplayName', 'истинная модель');
-
-    ok1 = r1.table.Accepted;
-    ok2 = r2.table.Accepted;
-    scatter3(ax1, r1.table.tMid_s(ok1), r1.table.Speed_mps(ok1), ...
-        r1.table.Acc_mps2(ok1), 100, 'o', 'filled', ...
-        'MarkerFaceColor', [0.85 0.33 0.10], 'MarkerEdgeColor', 'k', ...
-        'DisplayName', 'feature');
-    scatter3(ax1, r2.table.tMid_s(ok2), r2.table.Speed_mps(ok2), ...
-        r2.table.Acc_mps2(ok2), 80, 's', 'filled', ...
-        'MarkerFaceColor', [0.00 0.45 0.74], 'MarkerEdgeColor', 'k', ...
-        'DisplayName', 'fixed');
-
-    xlabel(ax1, 'Время, с'); ylabel(ax1, 'Скорость, м/с');
-    zlabel(ax1, 'Ускорение, м/с^2');
-    title(ax1, '(а) Оценки в пространстве (t, v, a)');
-    legend(ax1, 'Location', 'northeast');
-    view(ax1, -40, 22);
-
-    % (б) Столбчатая 3D-диаграмма ошибок по окнам.
-    % Три измерения: время окна, тип ошибки, величина. Удобно сравнивать
-    % окна между собой и видеть, какая из величин даёт больший вклад.
-    ax2 = subplot(1, 2, 2);
-    hold(ax2, 'on'); grid(ax2, 'on'); box(ax2, 'on');
-
-    idx = find(ok2);
-    for j = 1:numel(idx)
-        k = idx(j);
-        % Столбик ошибки скорости (ось Y = 1) и ускорения (ось Y = 2).
-        bar3Offset(ax2, r2.table.tMid_s(k), 1, r2.table.SpeedErr_mps(k), ...
-            [0.00 0.45 0.74]);
-        bar3Offset(ax2, r2.table.tMid_s(k), 2, ...
-            r2.table.Acc_mps2(k) - r2.table.AccTrue_mps2(k), ...
-            [0.85 0.33 0.10]);
-    end
-    plot3(ax2, ax2.XLim, [1 1], [0 0], 'k-', 'LineWidth', 1.0);
-    plot3(ax2, ax2.XLim, [2 2], [0 0], 'k-', 'LineWidth', 1.0);
-
-    ax2.YTick = [1 2];
-    ax2.YTickLabel = {'ошибка v, м/с', 'ошибка a, м/с^2'};
-    xlabel(ax2, 'Время окна, с'); ylabel(ax2, 'Величина');
-    zlabel(ax2, 'Ошибка (оценка - истина)');
-    title(ax2, '(б) Ошибки по окнам');
-    view(ax2, -35, 18);
-end
+% if any(r1.table.Accepted) && any(r2.table.Accepted)
+% 
+%     fig3 = figure('Name', '3D: сравнение режимов и точность', ...
+%         'NumberTitle', 'off', 'WindowStyle', 'normal', ...
+%         'Units', 'normalized', 'Position', [0.05 0.08 0.9 0.75]);
+% 
+%     % (а) Пространство (t, v, a): два режима на одних осях.
+%     % Позволяет увидеть, что режим feature даёт редкие, но точные оценки,
+%     % а fixed - частые; по оси Z сразу виден разброс ускорения.
+%     ax1 = subplot(1, 2, 1);
+%     hold(ax1, 'on'); grid(ax1, 'on'); box(ax1, 'on');
+% 
+%     tModel = linspace(0, r2.settings.T, 200).';
+%     vModel = r2.settings.speed0 + r2.settings.accel0 * tModel;
+%     aModel = repmat(r2.settings.accel0, size(tModel));
+%     plot3(ax1, tModel, vModel, aModel, 'k-', 'LineWidth', 1.8, ...
+%         'DisplayName', 'истинная модель');
+% 
+%     ok1 = r1.table.Accepted;
+%     ok2 = r2.table.Accepted;
+%     scatter3(ax1, r1.table.tMid_s(ok1), r1.table.Speed_mps(ok1), ...
+%         r1.table.Acc_mps2(ok1), 100, 'o', 'filled', ...
+%         'MarkerFaceColor', [0.85 0.33 0.10], 'MarkerEdgeColor', 'k', ...
+%         'DisplayName', 'feature');
+%     scatter3(ax1, r2.table.tMid_s(ok2), r2.table.Speed_mps(ok2), ...
+%         r2.table.Acc_mps2(ok2), 80, 's', 'filled', ...
+%         'MarkerFaceColor', [0.00 0.45 0.74], 'MarkerEdgeColor', 'k', ...
+%         'DisplayName', 'fixed');
+% 
+%     xlabel(ax1, 'Время, с'); ylabel(ax1, 'Скорость, м/с');
+%     zlabel(ax1, 'Ускорение, м/с^2');
+%     title(ax1, '(а) Оценки в пространстве (t, v, a)');
+%     legend(ax1, 'Location', 'northeast');
+%     view(ax1, -40, 22);
+% 
+%     % (б) Столбчатая 3D-диаграмма ошибок по окнам.
+%     % Три измерения: время окна, тип ошибки, величина. Удобно сравнивать
+%     % окна между собой и видеть, какая из величин даёт больший вклад.
+%     ax2 = subplot(1, 2, 2);
+%     hold(ax2, 'on'); grid(ax2, 'on'); box(ax2, 'on');
+% 
+%     idx = find(ok2);
+%     for j = 1:numel(idx)
+%         k = idx(j);
+%         % Столбик ошибки скорости (ось Y = 1) и ускорения (ось Y = 2).
+%         bar3Offset(ax2, r2.table.tMid_s(k), 1, r2.table.SpeedErr_mps(k), ...
+%             [0.00 0.45 0.74]);
+%         bar3Offset(ax2, r2.table.tMid_s(k), 2, ...
+%             r2.table.Acc_mps2(k) - r2.table.AccTrue_mps2(k), ...
+%             [0.85 0.33 0.10]);
+%     end
+%     plot3(ax2, ax2.XLim, [1 1], [0 0], 'k-', 'LineWidth', 1.0);
+%     plot3(ax2, ax2.XLim, [2 2], [0 0], 'k-', 'LineWidth', 1.0);
+% 
+%     ax2.YTick = [1 2];
+%     ax2.YTickLabel = {'ошибка v, м/с', 'ошибка a, м/с^2'};
+%     xlabel(ax2, 'Время окна, с'); ylabel(ax2, 'Величина');
+%     zlabel(ax2, 'Ошибка (оценка - истина)');
+%     title(ax2, '(б) Ошибки по окнам');
+%     view(ax2, -35, 18);
+% end
 
 %% ==================== вспомогательные функции ============================
 function bar3Offset(ax, x0, y0, h, col)
