@@ -1,0 +1,10 @@
+Профиль: C:\Users\Admin\Documents\Чертежи\Camozzi files\optic_vagon\data\wagon_12_6995_profile.mat
+Результаты: C:\Users\Admin\Documents\Чертежи\Camozzi files\optic_vagon\acceleration_comp\results
+
+Физическая нижняя граница окна: 1.97 с
+Длины окон: [2 2.5 3 3.5 4] с
+Перекрытия (шаг/окно): [1 0.5 0.25]
+Повторов на точку: 3 x (v0,a0) = 6 прогонов
+
+W=2.00 с hop=2.00 с: RMSE v=0.5470 bias=-0.2756 | RMSE a=0.890 std a=0.881 | покрытие  20% | окон  1.0
+W=2.00 с hop=1.00 с: RMSE v=0.5470 bias=-0.2756 | RMSE a=0.890 std a=0.881 | покрытие  20% | окон  1.0
