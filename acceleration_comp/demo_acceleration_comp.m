@@ -12,7 +12,8 @@ clear; close all; clc;
 thisDir = fileparts(mfilename('fullpath'));
 rootDir = fileparts(thisDir);                       % папка optic_vagon
 profileFile = fullfile(rootDir, 'data', 'wagon_12_6995_profile.mat');
-
+profileFile = fullfile(rootDir, 'data', 'sine_prof.mat');
+profileFile = fullfile(rootDir, 'data', 'step_prof.mat');
 if ~isfile(profileFile)
     error('Файл профиля не найден: %s', profileFile);
 end
@@ -182,7 +183,7 @@ function t = summarize(tbl)
 % Краткое представление таблицы результатов.
     t = tbl(:, {'Start_s', 'End_s', 'Speed_mps', 'SpeedTrue_mps', ...
                 'SpeedErr_mps', 'Acc_mps2', 'Correlation', ...
-                'WarpFactor', 'Accepted'});
+                'WarpFactor', 'Accepted','Note'});
 end
 
 function printQuality(name, tbl)
